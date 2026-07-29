@@ -1,0 +1,68 @@
+---
+name: organize-photoshop-island-layers
+description: Inspect, rename, merge, regroup, color-label, rasterize, and verify Photoshop PSD/PSB layer trees for five-region 2D game islands. Use when Codex must organize an island slicing document from an island slug and a building naming table, separate background and building foregrounds, normalize restored and ruined assets, or audit a finished island PSD/PSB against the delivery standard.
+---
+
+# Organize Photoshop Island Layers
+
+Organize the active island PSD/PSB through a Photoshop layer-control tool. Preserve artwork while producing a deterministic, export-ready layer tree.
+
+## Load The Standard
+
+Read [references/layer-standard.md](references/layer-standard.md) before planning names or structure.
+
+Read [references/photoshop-bridge.md](references/photoshop-bridge.md) when selecting tool operations, building a preview, or handling a stale Photoshop snapshot.
+
+## Gather Inputs
+
+Require:
+
+- An open Photoshop PSD/PSB.
+- A lowercase island slug, such as `farmisland`.
+- A source-name to asset-name mapping for every building.
+
+Normalize asset names to lowercase ASCII with no spaces or punctuation. Preserve the user's approved semantic wording; do not silently translate or shorten names.
+
+If an input is missing, inspect the document first. Ask only for information that cannot be inferred safely.
+
+## Execute The Workflow
+
+1. Read the active document title, current layer snapshot, and bridge status.
+2. Inventory all top-level groups, building groups, state groups, foreground layers, duplicate names, hidden layers, and Smart Objects.
+3. Match source buildings to the supplied naming table. Report unmatched or ambiguous items before changing them.
+4. Build the complete target tree and rename map in memory.
+5. Preview every operation against the same snapshot and document identity.
+6. Apply changes in bounded batches. Keep automatic application disabled unless the user explicitly requests unattended execution.
+7. Merge each restored-state group to one layer and each ruined-state group to one layer. Do not merge restored and ruined states together.
+8. Move building layers directly into one of the five region groups. Remove obsolete per-building child groups only after their contents are safely represented.
+9. Move foregrounds into `地表前层`, `破损前层`, or `完整前层`. Create any missing required group even when it remains empty.
+10. Rasterize every Smart Object after naming and placement are final.
+11. Re-read a fresh snapshot, run all delivery checks, and save the document.
+
+Do not delete uncertain source layers, flatten the whole document, or overwrite a different open document. Preserve visibility, pixel bounds, and relative stacking order unless the requested structure requires a move.
+
+## Verify Delivery
+
+Confirm all of the following from a fresh post-operation snapshot:
+
+- The required five top-level groups exist with exact names.
+- `建筑` contains exactly five region groups and no direct asset layers.
+- Every region contains direct asset layers only, with no building subgroups.
+- Region color labels match the standard.
+- Restored, ruined, background, and foreground names match the island slug.
+- Each delivered state is a single pixel layer.
+- The Smart Object count is zero.
+- No temporary aliases, generic names, or unmatched source building names remain.
+- No command is pending and the bridge reports no error.
+
+When a layer-tree JSON file is available, run:
+
+```powershell
+python scripts/validate_layer_tree.py <layer-tree.json> --island <slug>
+```
+
+Treat validator warnings as review items and validator errors as delivery blockers.
+
+## Report The Result
+
+State the document name, total layer count, Smart Object count, region counts, empty required groups, unresolved mappings, save status, and validation result. Distinguish live Photoshop verification from checks performed only on an exported JSON snapshot.

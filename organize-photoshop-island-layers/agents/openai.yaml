@@ -1,0 +1,4 @@
+interface:
+  display_name: "Photoshop Island Layer Organizer"
+  short_description: "Standardize island PSD layers for game art delivery"
+  default_prompt: "Use $organize-photoshop-island-layers to inspect and organize the open island PSD using my island name and building naming table."
