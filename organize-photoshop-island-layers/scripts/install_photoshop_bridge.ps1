@@ -6,8 +6,8 @@ param(
 $ErrorActionPreference = "Stop"
 $Version = "1.0.7"
 $ExtensionId = "com.humingbirdbird.photoshop-codex-bridge"
-$SkillRoot = Split-Path -Parent $PSScriptRoot
-$ArchivePath = Join-Path $SkillRoot "dependencies\photoshop-codex-bridge\Photoshop-Codex-Bridge-v$Version-win-x64.zip"
+$ArchiveUrl = "https://raw.githubusercontent.com/johnYancg94/Humingbirdbird-Art-skills/photoshop-codex-bridge-v1.0.7/organize-photoshop-island-layers/dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.0.7-win-x64.zip"
+$ExpectedHash = "64F8B517AC48364AFF73922DF8F5A68C2ADD1F9D668D518B5339916ADAF01DF6"
 $InstallBase = Join-Path $env:LOCALAPPDATA "Humingbirdbird\PhotoshopCodexBridge"
 $VersionRoot = Join-Path $InstallBase $Version
 $CepRoot = Join-Path $env:APPDATA "Adobe\CEP\extensions\$ExtensionId"
@@ -49,14 +49,6 @@ function Write-Result([bool]$AlreadyInstalled) {
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
   throw "Photoshop Codex Bridge v$Version dependency currently supports Windows only."
 }
-if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) {
-  throw "Bundled Photoshop Codex Bridge archive is missing: $ArchivePath"
-}
-$ExpectedHash = "64F8B517AC48364AFF73922DF8F5A68C2ADD1F9D668D518B5339916ADAF01DF6"
-$ActualHash = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash
-if ($ActualHash -ne $ExpectedHash) {
-  throw "Photoshop Codex Bridge archive checksum mismatch."
-}
 if (-not $Force -and (Test-BridgeDependency)) {
   Write-Result -AlreadyInstalled $true
   exit 0
@@ -65,12 +57,18 @@ if (-not $Force -and (Test-BridgeDependency)) {
 $TempRoot = Join-Path $env:TEMP ("photoshop-codex-bridge-skill-" + [guid]::NewGuid().ToString("N"))
 try {
   New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
+  $ArchivePath = Join-Path $TempRoot "Photoshop-Codex-Bridge-v$Version-win-x64.zip"
+  Invoke-WebRequest -UseBasicParsing -Uri $ArchiveUrl -OutFile $ArchivePath
+  $ActualHash = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash
+  if ($ActualHash -ne $ExpectedHash) {
+    throw "Photoshop Codex Bridge archive checksum mismatch."
+  }
   Expand-Archive -LiteralPath $ArchivePath -DestinationPath $TempRoot -Force
   $ReleaseRoot = Join-Path $TempRoot "Photoshop-Codex-Bridge-v$Version-win-x64"
   $PayloadRoot = Join-Path $ReleaseRoot "payload"
   $Installer = Join-Path $PayloadRoot "installer\install.ps1"
   if (-not (Test-Path -LiteralPath $Installer -PathType Leaf)) {
-    throw "Bundled Photoshop Codex Bridge installer is missing."
+    throw "Downloaded Photoshop Codex Bridge installer is missing."
   }
   & $Installer -PayloadRoot $PayloadRoot -SkipPhotoshopLaunch
   if (-not (Test-BridgeDependency)) {
