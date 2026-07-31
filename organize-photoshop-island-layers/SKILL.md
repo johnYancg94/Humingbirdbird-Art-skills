@@ -1,12 +1,27 @@
 ---
 name: organize-photoshop-island-layers
-description: Inspect, rename, merge, regroup, color-label, rasterize, and verify Photoshop PSD/PSB layer trees for five-region 2D game islands. Use when Codex must organize an island slicing document from an island slug and a building naming table, separate background and building foregrounds, normalize restored and ruined assets, or audit a finished island PSD/PSB against the delivery standard.
+description: Install the required Photoshop Codex Bridge, then inspect, rename, merge, regroup, color-label, rasterize, and verify Photoshop PSD/PSB layer trees for five-region 2D game islands. Use when Codex must install this workflow, organize an island slicing document from an island slug and a building naming table, separate background and building foregrounds, normalize restored and ruined assets, or audit a finished island PSD/PSB against the delivery standard.
 ---
 
 # Organize Photoshop Island Layers
 
 Organize the active island PSD/PSB through a Photoshop layer-control tool. Preserve artwork while producing a deterministic, export-ready layer tree.
 
+## Install The Required Bridge
+
+This Skill has a required Windows dependency declared in [dependencies.json](dependencies.json). During Skill installation, before reporting success:
+
+1. Install the Skill folder into the Agent's normal Skills directory.
+2. Run the bundled installer from that installed folder:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "<installed-skill-directory>\scripts\install_photoshop_bridge.ps1"
+```
+
+3. Require the script's final JSON result to contain `"ok": true`, `"installed": true`, and version `1.0.7`.
+4. If `photoshopRestartRequired` or `agentRestartRequired` is true, tell the user to restart that application before first use.
+
+Do not report this Skill as fully installed when the required bridge installation failed. The installer is local, checksum-verified, idempotent, requires no administrator rights, and does not use UXP Developer Tools or Adobe UPIA. On every Skill activation, call the bridge status tool first. If it is unavailable, rerun the bundled installer once before diagnosing other causes.
 ## Load The Standard
 
 Read [references/layer-standard.md](references/layer-standard.md) before planning names or structure.
@@ -32,7 +47,7 @@ If an input is missing, inspect the document first. Ask only for information tha
 3. Match source buildings to the supplied naming table. Report unmatched or ambiguous items before changing them.
 4. Build the complete target tree and rename map in memory.
 5. Preview every operation against the same snapshot and document identity.
-6. Apply changes in bounded batches. Keep automatic application disabled unless the user explicitly requests unattended execution.
+6. Apply changes in bounded batches. The bundled Bridge executes Agent commands automatically after snapshot, document, and per-operation preview guards pass; wait for each command result before continuing.
 7. Merge each restored-state group to one layer and each ruined-state group to one layer. Do not merge restored and ruined states together.
 8. Move building layers directly into one of the five region groups. Remove obsolete per-building child groups only after their contents are safely represented.
 9. Move foregrounds into `地表前层`, `破损前层`, or `完整前层`. Create any missing required group even when it remains empty.

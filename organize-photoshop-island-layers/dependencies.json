@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "dependencies": [
+    {
+      "id": "photoshop-codex-bridge",
+      "name": "Photoshop Codex Bridge",
+      "version": "1.0.7",
+      "required": true,
+      "platforms": ["win32-x64"],
+      "installPolicy": "install-with-skill",
+      "installer": "scripts/install_photoshop_bridge.ps1",
+      "artifact": "dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.0.7-win-x64.zip",
+      "sha256": "64F8B517AC48364AFF73922DF8F5A68C2ADD1F9D668D518B5339916ADAF01DF6",
+      "requiresPhotoshopRestart": true,
+      "requiresAgentRestart": true,
+      "requiresAdministrator": false,
+      "requiresUxpDeveloperTools": false,
+      "requiresUpia": false
+    }
+  ]
+}

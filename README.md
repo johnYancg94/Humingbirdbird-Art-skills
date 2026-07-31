@@ -23,5 +23,12 @@ Each skill is self-contained in its own folder so more art-production skills can
 ```text
 帮我安装这个 skill：https://github.com/johnYancg94/Humingbirdbird-Art-skills/tree/main/organize-photoshop-island-layers
 ```
+该 Skill 自带必需的 `Photoshop Codex Bridge v1.0.7` Windows 独立安装包和依赖清单。安装 Agent 在复制 Skill 后必须自动运行：
 
-如果使用的 Agent 不支持 Skills，可以打开对应 Skill 目录，下载其中的 `SKILL.md` 全文，将其作为项目规则文件，或直接粘贴到对话中让 Agent 按照规则执行。
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "<已安装Skill目录>\scripts\install_photoshop_bridge.ps1"
+```
+
+安装脚本会校验 SHA-256，幂等安装 CEP 扩展、独立 Node 运行时和 Codex MCP 配置，并验证安装版本。它不依赖 UXP Developer Tools、Adobe UPIA 或管理员权限，也不会在安装过程中强制启动或关闭 Photoshop。首次安装后需要重启 Photoshop 和 Agent；后续重复安装会自动检测并跳过已满足的依赖。
+
+如果使用的 Agent 不支持 Skills，可以下载整个 Skill 目录，先运行其中的 `scripts/install_photoshop_bridge.ps1`，再将 `SKILL.md` 作为项目规则文件或直接粘贴到对话中。仅下载 `SKILL.md` 不会安装 Photoshop Bridge 依赖。

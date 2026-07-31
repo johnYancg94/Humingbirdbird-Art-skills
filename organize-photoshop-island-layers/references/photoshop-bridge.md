@@ -41,10 +41,10 @@ Prefer this dependency order:
 
 When a bridge supports aliases for newly created groups, use aliases inside a single atomic batch. Otherwise, create groups first, refresh the snapshot, and use their returned layer IDs in a second batch.
 
-## Approval And Error Handling
+## Automatic Execution And Error Handling
 
 - Preview mutations before queueing them.
-- Keep automatic application off by default.
+- The bundled Bridge automatically executes only commands bound to its verified snapshot and active document.
 - Apply small batches when merging or deleting because these operations are difficult to reverse after saving.
 - After each structural batch, wait for completion and refresh the snapshot.
 - Stop on the first failed operation. Do not continue with layer IDs whose parent structure may have changed.
