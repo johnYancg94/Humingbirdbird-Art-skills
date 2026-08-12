@@ -70,6 +70,10 @@ def main() -> int:
     roots = snapshot_layers(payload)
     errors: list[str] = []
     warnings: list[str] = []
+    info: list[str] = []
+    snapshot = payload.get("snapshot", payload)
+    capabilities = snapshot.get("capabilities", {}) if isinstance(snapshot, dict) else {}
+    color_observation_unavailable = capabilities.get("colorLabels") == "unavailable-cep"
 
     if not re.fullmatch(r"[a-z0-9]+", args.island):
         errors.append("island slug must contain lowercase ASCII letters and digits only")
@@ -110,7 +114,10 @@ def main() -> int:
                 errors.append(f"{name} contains nested groups")
             actual_color = layer_color(region)
             if actual_color is None:
-                warnings.append(f"{name} color label could not be read")
+                if color_observation_unavailable:
+                    info.append(f"{name} color label operation may succeed but is not observable in this CEP snapshot")
+                else:
+                    warnings.append(f"{name} color label could not be read")
             elif actual_color != expected_color:
                 errors.append(
                     f"{name} color is {actual_color!r}; expected {expected_color!r}"
@@ -166,6 +173,8 @@ def main() -> int:
 
     print(f"layers: {len(all_layers)}")
     print(f"smartObjects: {len(smart_objects)}")
+    for message in info:
+        print(f"INFO: {message}")
     for warning in warnings:
         print(f"WARNING: {warning}")
     for error in errors:

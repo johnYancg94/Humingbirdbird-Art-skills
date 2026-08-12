@@ -18,7 +18,7 @@ This Skill has a required Windows dependency declared in [dependencies.json](dep
 powershell -NoProfile -ExecutionPolicy Bypass -File "<installed-skill-directory>\scripts\install_photoshop_bridge.ps1"
 ```
 
-3. Require the script's final JSON result to contain `"ok": true`, `"installed": true`, and version `1.0.7`.
+3. Require the script's final JSON result to contain `"ok": true`, `"installed": true`, and the version declared in `dependencies.json`.
 4. If `photoshopRestartRequired` or `agentRestartRequired` is true, tell the user to restart that application before first use.
 
 Do not report this Skill as fully installed when the required bridge installation failed. The installer is local, checksum-verified, idempotent, requires no administrator rights, and does not use UXP Developer Tools or Adobe UPIA. On every Skill activation, call the bridge status tool first. If it is unavailable, rerun the bundled installer once before diagnosing other causes.
@@ -47,7 +47,7 @@ If an input is missing, inspect the document first. Ask only for information tha
 3. Match source buildings to the supplied naming table. Report unmatched or ambiguous items before changing them.
 4. Build the complete target tree and rename map in memory.
 5. Preview every operation against the same snapshot and document identity.
-6. Apply changes in bounded batches. The bundled Bridge executes Agent commands automatically after snapshot, document, and per-operation preview guards pass; wait for each command result before continuing.
+6. Apply changes in bounded batches. The bundled Bridge executes Agent commands automatically after snapshot, document, and per-operation preview guards pass; wait for each command result before continuing. After every structural command, request a fresh full snapshot before planning the next batch. Never continue from cached IDs after a manual Photoshop edit.
 7. Merge each restored-state group to one layer and each ruined-state group to one layer. Do not merge restored and ruined states together.
 8. Move building layers directly into one of the five region groups. Remove obsolete per-building child groups only after their contents are safely represented.
 9. Move foregrounds into `地表前层`, `破损前层`, or `完整前层`. Create any missing required group even when it remains empty.
@@ -55,6 +55,10 @@ If an input is missing, inspect the document first. Ask only for information tha
 11. Re-read a fresh snapshot, run all delivery checks, and save the document.
 
 Do not delete uncertain source layers, flatten the whole document, or overwrite a different open document. Preserve visibility, pixel bounds, and relative stacking order unless the requested structure requires a move.
+
+## Recovery For Photoshop 2026 CEP
+
+moveLayerToGroup includes an Action Manager fallback for group sources. If both methods fail, stop and report exact source and target names and IDs. Manual movement or root sorting is an explicit last resort; after it, wait for Photoshop and request a fresh snapshot before checking IDs, parents, names, or order. Never issue commands from a stale snapshot.
 
 ## Verify Delivery
 
@@ -76,7 +80,7 @@ When a layer-tree JSON file is available, run:
 python scripts/validate_layer_tree.py <layer-tree.json> --island <slug>
 ```
 
-Treat validator warnings as review items and validator errors as delivery blockers.
+Treat validator warnings as review items and validator errors as delivery blockers. If `capabilities.colorLabels` is `unavailable-cep`, missing readable color is an environment observability note, not a delivery warning; a successful `setLayerColor` result is evidence of operation success.
 
 ## Report The Result
 
