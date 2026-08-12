@@ -10,7 +10,8 @@ Use any Photoshop integration that can read a complete active-document layer tre
 | Queue approved changes | `photoshop_queue_layer_operations` |
 | Rename a layer | `renameLayer` |
 | Create a group | `createGroup` |
-| Move a layer into a group | `moveLayerToGroup` |
+| Move a layer into a group | `moveLayerToGroup` (DOM, then Action Manager fallback for groups) |
+| Reorder same-parent layers | `moveLayerBefore` |
 | Merge a group to one layer | `mergeGroupToLayer` |
 | Set a region color label | `setLayerColor` |
 | Rasterize a Smart Object | `rasterizeLayer` |
@@ -47,5 +48,7 @@ When a bridge supports aliases for newly created groups, use aliases inside a si
 - The bundled Bridge automatically executes only commands bound to its verified snapshot and active document.
 - Apply small batches when merging or deleting because these operations are difficult to reverse after saving.
 - After each structural batch, wait for completion and refresh the snapshot.
+- In Photoshop 2026 CEP, a group-to-group move may require the Action Manager fallback; root sorting uses `moveLayerBefore` and requires the same parent.
+- After any manual move or sort, request a fresh snapshot before rebuilding or validating operations.
 - Stop on the first failed operation. Do not continue with layer IDs whose parent structure may have changed.
 - Save only after the final snapshot passes delivery checks.

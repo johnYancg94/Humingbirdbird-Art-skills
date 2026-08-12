@@ -4,10 +4,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Version = "1.0.8"
+$Version = "1.0.9"
 $ExtensionId = "com.humingbirdbird.photoshop-codex-bridge"
-$ArchiveUrl = "https://raw.githubusercontent.com/johnYancg94/Humingbirdbird-Art-skills/photoshop-codex-bridge-v1.0.8/organize-photoshop-island-layers/dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.0.8-win-x64.zip"
-$ExpectedHash = "1C777EBAE57ED9F07E72AE023CE7B01C3175C969BBBA73A2A1316AC3A0B07A4A"
+$ArchiveUrl = "https://raw.githubusercontent.com/johnYancg94/Humingbirdbird-Art-skills/photoshop-codex-bridge-v1.0.9/organize-photoshop-island-layers/dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.0.9-win-x64.zip"
+$ExpectedHash = "CFC05B13FC614886ED43BF05ED035759AB0083FBE1E945B7AC4420EFB1CD43A6"
 $InstallBase = Join-Path $env:LOCALAPPDATA "Humingbirdbird\PhotoshopCodexBridge"
 $VersionRoot = Join-Path $InstallBase $Version
 $CepRoot = Join-Path $env:APPDATA "Adobe\CEP\extensions\$ExtensionId"
