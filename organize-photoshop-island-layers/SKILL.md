@@ -67,7 +67,7 @@ Confirm all of the following from a fresh post-operation snapshot:
 - The required five top-level groups exist with exact names.
 - `建筑` contains exactly five region groups and no direct asset layers.
 - Every region contains direct asset layers only, with no building subgroups.
-- Region color labels match the standard.
+- Region color labels match the standard when the snapshot exposes readable color fields. If `capabilities.colorLabels` is `unavailable-cep`, report an environment observability note instead of a warning; a successful `setLayerColor` result counts as operation success.
 - Restored, ruined, background, and foreground names match the island slug.
 - Each delivered state is a single pixel layer.
 - The Smart Object count is zero.
