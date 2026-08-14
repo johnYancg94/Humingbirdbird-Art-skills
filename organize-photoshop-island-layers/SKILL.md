@@ -72,7 +72,7 @@ Do not delete uncertain source layers, flatten the whole document, or overwrite 
 
 ## Recovery For Photoshop 2026 CEP
 
-moveLayerToGroup includes an Action Manager fallback for group sources. If both methods fail, stop and report exact source and target names and IDs. Manual movement or root sorting is an explicit last resort; after it, wait for Photoshop and request a fresh snapshot before checking IDs, parents, names, or order. Never issue commands from a stale snapshot.
+`moveLayerToGroup` uses DOM `INSIDE`, a Photoshop 2026 temporary-anchor move, then Action Manager for group sources. If all methods fail, stop and report exact source and target names and IDs. An alternate Photoshop API or manual movement is an explicit last resort; after it, wait for Photoshop and request a fresh snapshot before checking IDs, parents, names, or order. Never issue commands from a stale snapshot.
 
 ## Verify Delivery
 
