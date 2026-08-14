@@ -4,10 +4,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Version = "1.0.9"
+$Version = "1.0.10"
 $ExtensionId = "com.humingbirdbird.photoshop-codex-bridge"
-$ArchiveUrl = "https://raw.githubusercontent.com/johnYancg94/Humingbirdbird-Art-skills/photoshop-codex-bridge-v1.0.9/organize-photoshop-island-layers/dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.0.9-win-x64.zip"
-$ExpectedHash = "CFC05B13FC614886ED43BF05ED035759AB0083FBE1E945B7AC4420EFB1CD43A6"
+$ArchiveUrl = "https://raw.githubusercontent.com/johnYancg94/Humingbirdbird-Art-skills/photoshop-codex-bridge-v1.0.10/organize-photoshop-island-layers/dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.0.10-win-x64.zip"
+$ExpectedHash = "49F34A836FD6D7539B1926B55E79402F64E372028A29F8FC9AAE09FAD336C2D1"
 $InstallBase = Join-Path $env:LOCALAPPDATA "Humingbirdbird\PhotoshopCodexBridge"
 $VersionRoot = Join-Path $InstallBase $Version
 $CepRoot = Join-Path $env:APPDATA "Adobe\CEP\extensions\$ExtensionId"
@@ -25,6 +25,7 @@ function Test-BridgeDependency {
     return $false
   }
   if (-not (Test-Path -LiteralPath (Join-Path $CepRoot "js\command-policy.js") -PathType Leaf)) { return $false }
+  if (-not (Test-Path -LiteralPath (Join-Path $CepRoot "js\connection-policy.js") -PathType Leaf)) { return $false }
   if (-not (Test-Path -LiteralPath $CodexConfig -PathType Leaf)) { return $false }
   $Config = Get-Content -LiteralPath $CodexConfig -Raw
   if (-not $Config.Contains("[mcp_servers.photoshop_codex_bridge]")) { return $false }

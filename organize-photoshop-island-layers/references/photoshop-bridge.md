@@ -17,6 +17,19 @@ Use any Photoshop integration that can read a complete active-document layer tre
 | Rasterize a Smart Object | `rasterizeLayer` |
 | Delete an obsolete empty group | `deleteLayer` |
 
+## Panel Connection Controls
+
+After opening the CEP panel, click `一键开启连接`. It verifies the CEP interface, Photoshop JSX adapter, and the Codex MCP broker, then starts on-demand polling and requests a full snapshot.
+
+`一键关闭` stops panel polling and invalidates in-flight work. `重载插件` resets the CEP page and is useful after an adapter script error. Neither button starts a second MCP broker; the broker is owned by the Codex MCP process on `127.0.0.1:47777`.
+
+Use the panel status fields to distinguish:
+- `CEP 接口权限`
+- `Photoshop 脚本适配器`
+- `Codex MCP 服务`
+
+If the MCP service is unavailable, restart Codex or reload the MCP server. After any recovery, click `重新读取图层` and rebuild operations from the new snapshot.
+
 ## Snapshot Safety
 
 Bind every preview and queued batch to:

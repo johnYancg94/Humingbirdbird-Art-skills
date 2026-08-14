@@ -22,6 +22,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<installed-skill-directory>
 4. If `photoshopRestartRequired` or `agentRestartRequired` is true, tell the user to restart that application before first use.
 
 Do not report this Skill as fully installed when the required bridge installation failed. The installer is local, checksum-verified, idempotent, requires no administrator rights, and does not use UXP Developer Tools or Adobe UPIA. On every Skill activation, call the bridge status tool first. If it is unavailable, rerun the bundled installer once before diagnosing other causes.
+
+After opening the Photoshop panel, the user must click `一键开启连接` once. The panel then verifies the CEP interface, Photoshop JSX adapter, and Codex MCP broker, starts on-demand polling, and requests an initial full snapshot. Do not treat a panel that merely opened as connected.
+
+The panel also provides `一键关闭`, which stops panel polling, and `重载插件`, which safely resets the CEP page. These controls do not install or start the Codex MCP process; if the broker is unavailable, restart Codex or reload the MCP server.
+## Connection Troubleshooting
+
+Read `photoshop_get_bridge_status` and inspect `latestClientStatus` before diagnosing layer operations. Check these three panel fields separately: `CEP 接口权限`, `Photoshop 脚本适配器`, and `Codex MCP 服务`.
+
+- CEP unavailable: reinstall the standalone CEP extension and restart Photoshop.
+- Photoshop adapter unavailable: click `重载插件`; if it persists, restart Photoshop.
+- MCP unavailable: restart Codex or reload the configured MCP server; do not start a second broker on port 47777.
+- After recovery, click `重新读取图层` and use the new snapshot ID.
+
 ## Load The Standard
 
 Read [references/layer-standard.md](references/layer-standard.md) before planning names or structure.
@@ -42,17 +55,18 @@ If an input is missing, inspect the document first. Ask only for information tha
 
 ## Execute The Workflow
 
-1. Read the active document title, current layer snapshot, and bridge status.
-2. Inventory all top-level groups, building groups, state groups, foreground layers, duplicate names, hidden layers, and Smart Objects.
-3. Match source buildings to the supplied naming table. Report unmatched or ambiguous items before changing them.
-4. Build the complete target tree and rename map in memory.
-5. Preview every operation against the same snapshot and document identity.
-6. Apply changes in bounded batches. The bundled Bridge executes Agent commands automatically after snapshot, document, and per-operation preview guards pass; wait for each command result before continuing. After every structural command, request a fresh full snapshot before planning the next batch. Never continue from cached IDs after a manual Photoshop edit.
-7. Merge each restored-state group to one layer and each ruined-state group to one layer. Do not merge restored and ruined states together.
-8. Move building layers directly into one of the five region groups. Remove obsolete per-building child groups only after their contents are safely represented.
-9. Move foregrounds into `地表前层`, `破损前层`, or `完整前层`. Create any missing required group even when it remains empty.
-10. Rasterize every Smart Object after naming and placement are final.
-11. Re-read a fresh snapshot, run all delivery checks, and save the document.
+1. Confirm the panel connection status is `已连接`; if it is `已关闭`, ask the user to click `一键开启连接`.
+2. Read the active document title, current layer snapshot, and bridge status.
+3. Inventory all top-level groups, building groups, state groups, foreground layers, duplicate names, hidden layers, and Smart Objects.
+4. Match source buildings to the supplied naming table. Report unmatched or ambiguous items before changing them.
+5. Build the complete target tree and rename map in memory.
+6. Preview every operation against the same snapshot and document identity.
+7. Apply changes in bounded batches. The bundled Bridge executes Agent commands automatically after snapshot, document, and per-operation preview guards pass; wait for each command result before continuing. After every structural command, request a fresh full snapshot before planning the next batch. Never continue from cached IDs after a manual Photoshop edit.
+8. Merge each restored-state group to one layer and each ruined-state group to one layer. Do not merge restored and ruined states together.
+9. Move building layers directly into one of the five region groups. Remove obsolete per-building child groups only after their contents are safely represented.
+10. Move foregrounds into `地表前层`, `破损前层`, or `完整前层`. Create any missing required group even when it remains empty.
+11. Rasterize every Smart Object after naming and placement are final.
+12. Re-read a fresh snapshot, run all delivery checks, and save the document.
 
 Do not delete uncertain source layers, flatten the whole document, or overwrite a different open document. Preserve visibility, pixel bounds, and relative stacking order unless the requested structure requires a move.
 
