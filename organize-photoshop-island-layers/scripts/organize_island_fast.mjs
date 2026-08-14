@@ -65,6 +65,13 @@ function rootLayer(snapshot, name, required = true) {
   return matches[0] || null;
 }
 
+function rootGroup(snapshot, name, required = true) {
+  const matches = (snapshot.layers || []).filter(layer => layer.name === name && layer.isGroup);
+  if (matches.length > 1) throw new Error(`Duplicate root group: ${name}`);
+  if (required && matches.length !== 1) throw new Error(`Missing root group: ${name}`);
+  return matches[0] || null;
+}
+
 function validateConfig(config) {
   if (!config || typeof config !== "object") throw new Error("Config must be an object");
   if (!/^[a-z0-9]+$/.test(config.slug || "")) throw new Error("Config slug must contain only lowercase ASCII letters and digits");
@@ -96,7 +103,7 @@ export function buildSetupOperations(snapshot, config) {
   assertDocument(snapshot, config);
   const surface = rootLayer(snapshot, "背景前层");
   for (const name of ROOT_ORDER.slice(1)) {
-    if (rootLayer(snapshot, name, false)) throw new Error(`Root group ${name} already exists; use a pristine source PSD or resume from a refreshed snapshot`);
+    if (rootGroup(snapshot, name, false)) throw new Error(`Root group ${name} already exists; use a pristine source PSD or resume from a refreshed snapshot`);
   }
   if (rootLayer(snapshot, "__codex_background_merge__", false)) throw new Error("Temporary background group already exists");
 
