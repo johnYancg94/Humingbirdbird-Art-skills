@@ -25,7 +25,8 @@ Do not report this Skill as fully installed when the required bridge installatio
 
 After opening the Photoshop panel, the user must click `一键开启连接` once. The panel then verifies the CEP interface, Photoshop JSX adapter, and Codex MCP broker, starts on-demand polling, and requests an initial full snapshot. Do not treat a panel that merely opened as connected.
 
-The panel also provides `一键关闭`, which stops panel polling, and `重载插件`, which safely resets the CEP page. These controls do not install or start the Codex MCP process; if the broker is unavailable, restart Codex or reload the MCP server.
+The panel also provides `一键关闭`, which stops panel polling, and `重载插件`, which resets the CEP page. On the next `一键开启连接`, Bridge v1.1.0 reloads the installed JSX adapter before polling. These controls do not install or start the Codex MCP process; if the broker is unavailable, restart Codex or reload the MCP server.
+
 ## Connection Troubleshooting
 
 Read `photoshop_get_bridge_status` and inspect `latestClientStatus` before diagnosing layer operations. Check these three panel fields separately: `CEP 接口权限`, `Photoshop 脚本适配器`, and `Codex MCP 服务`.
@@ -41,6 +42,8 @@ Read [references/layer-standard.md](references/layer-standard.md) before plannin
 
 Read [references/photoshop-bridge.md](references/photoshop-bridge.md) when selecting tool operations, building a preview, or handling a stale Photoshop snapshot.
 
+Read [references/fast-organizer.md](references/fast-organizer.md) when the source is a regular five-region island and the user wants the fastest guarded workflow.
+
 ## Gather Inputs
 
 Require:
@@ -55,18 +58,19 @@ If an input is missing, inspect the document first. Ask only for information tha
 
 ## Execute The Workflow
 
-1. Confirm the panel connection status is `已连接`; if it is `已关闭`, ask the user to click `一键开启连接`.
-2. Read the active document title, current layer snapshot, and bridge status.
-3. Inventory all top-level groups, building groups, state groups, foreground layers, duplicate names, hidden layers, and Smart Objects.
-4. Match source buildings to the supplied naming table. Report unmatched or ambiguous items before changing them.
+1. Confirm the panel connection status is `已连接` and request a fresh full snapshot.
+2. Verify the active document ID and title before generating operations.
+3. Inventory root layers, five regions, building groups, state groups, foregrounds, hidden layers, duplicate names, and Smart Objects.
+4. Match every source building to the supplied naming table. Stop on unmatched or ambiguous items.
 5. Build the complete target tree and rename map in memory.
-6. Preview every operation against the same snapshot and document identity.
-7. Apply changes in bounded batches. The bundled Bridge executes Agent commands automatically after snapshot, document, and per-operation preview guards pass; wait for each command result before continuing. After every structural command, request a fresh full snapshot before planning the next batch. Never continue from cached IDs after a manual Photoshop edit.
-8. Merge each restored-state group to one layer and each ruined-state group to one layer. Do not merge restored and ruined states together.
-9. Move building layers directly into one of the five region groups. Remove obsolete per-building child groups only after their contents are safely represented.
-10. Move foregrounds into `地表前层`, `破损前层`, or `完整前层`. Create any missing required group even when it remains empty.
-11. Rasterize every Smart Object after naming and placement are final.
-12. Re-read a fresh snapshot, run all delivery checks, and save the document.
+6. Use fast mode by default only when all preconditions in `references/fast-organizer.md` pass. Create its JSON config and run `node scripts/organize_island_fast.mjs --config "<absolute-config-path>"` from the installed Skill directory.
+7. Fast mode uses two guarded Photoshop commands and three full snapshots: setup, refresh, main organization plus save, then final validation. Wait for each command result; do not split every merge and move into separate snapshot round trips.
+8. If the source structure is irregular, use the guarded fallback: preview bounded batches, wait for completion, then request a fresh full snapshot before planning the next structural batch.
+9. Merge each restored-state group to one layer and each ruined-state group to one layer. Never merge the two states together.
+10. Move state layers directly into their region; move foregrounds into `地表前层`, `破损前层`, or `完整前层`; create required empty groups.
+11. Rasterize every remaining Smart Object, nest and color the five regions under `建筑`, then sort the exact root order.
+12. After any manual Photoshop edit, discard cached IDs and request a fresh full snapshot before recovery or validation.
+13. Save only through a successfully guarded final batch or after a fresh snapshot passes every delivery check.
 
 Do not delete uncertain source layers, flatten the whole document, or overwrite a different open document. Preserve visibility, pixel bounds, and relative stacking order unless the requested structure requires a move.
 
@@ -98,4 +102,4 @@ Treat validator warnings as review items and validator errors as delivery blocke
 
 ## Report The Result
 
-State the document name, total layer count, Smart Object count, region counts, empty required groups, unresolved mappings, save status, and validation result. Distinguish live Photoshop verification from checks performed only on an exported JSON snapshot.
+State the document name, total layer count, Smart Object count, region counts, empty required groups, unresolved mappings, save status, validation result, and measured elapsed time when fast mode ran. Distinguish live Photoshop verification from checks performed only on an exported JSON snapshot.
