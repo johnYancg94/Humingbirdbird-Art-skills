@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Photoshop Codex Bridge 连接面板</title>
+  <link rel="stylesheet" href="css/panel.css">
+</head>
+<body>
+  <header>
+    <strong>Codex Bridge 连接面板</strong>
+    <span id="connection" class="badge">已关闭</span>
+  </header>
+
+  <div class="toolbar">
+    <button id="start" class="primary">一键开启连接</button>
+    <button id="stop">一键关闭</button>
+    <button id="reload">重载插件</button>
+    <button id="refresh">重新读取图层</button>
+  </div>
+
+  <div class="mode">Agent 控制：自动执行（受快照与文档校验保护）</div>
+  <label><input id="readDescriptors" type="checkbox" disabled> 图层描述符（仅 UXP 可用）</label>
+
+
+  <pre id="status">插件已加载。点击“一键开启连接”检查并开启全部连接。</pre>
+  <script src="js/connection-policy.js"></script>
+  <script src="js/poll-policy.js"></script>
+  <script src="js/command-policy.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

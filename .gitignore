@@ -2,3 +2,10 @@ __pycache__/
 *.py[cod]
 .DS_Store
 Thumbs.db
+
+tools/photoshop-codex-bridge/release/.build/
+tools/photoshop-codex-bridge/release/dist/
+*.run.json
+
+tools/.codex-tmp/
+organize-photoshop-island-layers/dependencies/

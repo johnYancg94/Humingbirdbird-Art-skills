@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "photoshop-codex-bridge": {
+      "command": "node",
+      "args": [
+        "./mcp-server/server.mjs"
+      ],
+      "cwd": ".",
+      "startup_timeout_sec": 10,
+      "tool_timeout_sec": 60
+    }
+  }
+}

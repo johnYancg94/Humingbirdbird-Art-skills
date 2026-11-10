@@ -1,5 +1,7 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+
+import {validateDelivery, REGION_COLORS, flatten as flattenTree} from "./layer-validation.mjs";
 
 const DEFAULT_API = "http://127.0.0.1:47777";
 const ROOT_ORDER = ["地表前层", "破损前层", "完整前层", "建筑", "背景"];
@@ -11,12 +13,13 @@ const STATE_RULES = new Map([
 ]);
 
 function parseArgs(argv) {
-  const options = { api: DEFAULT_API, timeoutMs: 300000, dryRun: false };
+  const options = { api: DEFAULT_API, timeoutMs: 600000, dryRun: false, report: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--config") options.config = argv[++i];
     else if (arg === "--api") options.api = argv[++i];
     else if (arg === "--timeout-ms") options.timeoutMs = Number(argv[++i]);
+    else if (arg === "--report") options.report = argv[++i];
     else if (arg === "--dry-run") options.dryRun = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -78,12 +81,13 @@ function validateConfig(config) {
   if (!config.documentTitle) throw new Error("Config documentTitle is required");
   if (config.allowMergeAllRootBackgroundLayers !== true) throw new Error("Config must explicitly set allowMergeAllRootBackgroundLayers to true after auditing root leaf layers");
   if (!Array.isArray(config.regions) || config.regions.length !== 5) throw new Error("Config must define exactly five regions");
+  if (new Set(config.regions.map(r=>r.name)).size !== 5) throw new Error("Duplicate regions");
   const sources = new Set();
   const tokens = new Set();
   for (const region of config.regions) {
-    if (!region.name || !region.color || !Array.isArray(region.buildings)) throw new Error("Each region requires name, color, and buildings");
+    if (REGION_COLORS[region.name] !== region.color || !Array.isArray(region.buildings)) throw new Error("Each region requires name, color, and buildings");
     for (const building of region.buildings) {
-      if (!building.source || !building.token) throw new Error(`Invalid building mapping in ${region.name}`);
+      if (!building.source || !/^[a-z0-9]+$/.test(building.token || "")) throw new Error(`Invalid building mapping in ${region.name}`);
       if (sources.has(building.source)) throw new Error(`Duplicate source building: ${building.source}`);
       if (tokens.has(building.token)) throw new Error(`Duplicate building token: ${building.token}`);
       sources.add(building.source);
@@ -94,14 +98,16 @@ function validateConfig(config) {
 }
 
 function assertDocument(snapshot, config) {
-  if (snapshot.document?.title !== config.documentTitle) {
+  if ((config.documentId !== undefined && snapshot.document?.id !== config.documentId) || snapshot.document?.title !== config.documentTitle) {
     throw new Error(`Active Photoshop document is ${snapshot.document?.title || "none"}; expected ${config.documentTitle}`);
   }
 }
 
 export function buildSetupOperations(snapshot, config) {
   assertDocument(snapshot, config);
-  const surface = rootLayer(snapshot, "背景前层");
+  const surfaces = snapshot.layers.filter(l=>["背景前层","地表前层"].includes(l.name));
+  if(surfaces.length!==1 || !surfaces[0].isGroup) throw new Error("Exactly one surface foreground group required");
+  const surface = surfaces[0];
   for (const name of ROOT_ORDER.slice(1)) {
     if (rootGroup(snapshot, name, false)) throw new Error(`Root group ${name} already exists; use a pristine source PSD or resume from a refreshed snapshot`);
   }
@@ -127,7 +133,7 @@ export function buildSetupOperations(snapshot, config) {
     { op: "createGroup", name: "破损前层", assignAlias: "ruinFront" },
     { op: "createGroup", name: "__codex_background_merge__", assignAlias: "backgroundMerge" }
   );
-  for (const layer of backgroundLayers) {
+  for (const layer of backgroundLayers.slice().reverse()) {
     operations.push({ op: "moveLayerToGroup", layerId: layer.id, groupAlias: "backgroundMerge" });
   }
   return operations;
@@ -150,13 +156,13 @@ export function buildOrganizeOperations(snapshot, config) {
     const unexpected = actualBuildingGroups.filter(layer => !expectedBuildings.has(layer.name));
     if (unexpected.length) throw new Error(`Unexpected building groups in ${region.name}: ${unexpected.map(layer => layer.name).join(", ")}`);
 
-    for (const buildingSpec of regionSpec.buildings) {
+    for (const buildingSpec of regionSpec.buildings.slice().reverse()) {
       const building = directChild(region, buildingSpec.source);
       if (!building.isGroup) throw new Error(`${region.name}/${building.name} is not a group`);
       const stateGroups = (building.layers || []).filter(layer => layer.isGroup);
       const nonGroups = (building.layers || []).filter(layer => !layer.isGroup);
       if (nonGroups.length) throw new Error(`Unexpected direct layers in ${region.name}/${building.name}: ${nonGroups.map(layer => layer.name).join(", ")}`);
-      for (const stateGroup of stateGroups) {
+      for (const stateGroup of stateGroups.slice().reverse()) {
         const rule = STATE_RULES.get(stateGroup.name);
         if (!rule) throw new Error(`Unknown state group ${stateGroup.name} in ${region.name}/${building.name}`);
         if ((stateGroup.childCount ?? stateGroup.layers?.length ?? 0) === 0) {
@@ -167,6 +173,7 @@ export function buildOrganizeOperations(snapshot, config) {
         operations.push({ op: "mergeGroupToLayer", groupLayerId: stateGroup.id, name: finalName });
         const targetId = rule.target === "region" ? region.id : targets.get(rule.target).id;
         operations.push({ op: "moveLayerToGroup", layerId: stateGroup.id, groupLayerId: targetId });
+        operations.push({op:"setVisibility",layerId:stateGroup.id,visible:config.manifest.find(e=>e.name===finalName).visible});
       }
       operations.push({ op: "deleteLayer", layerId: building.id });
     }
@@ -184,106 +191,117 @@ export function buildOrganizeOperations(snapshot, config) {
     operations.push({ op: "moveLayerBefore", layerId: layer.id, beforeLayerId: before.id });
     before = layer;
   }
-  operations.push({ op: "saveDocument" });
+
   return operations;
 }
 
-async function queueAndWait(api, operations, reason, timeoutMs, dryRun) {
-  const preview = await requestJson(api, "/codex/layer-operations/preview", {
-    method: "POST",
-    body: JSON.stringify({ operations })
-  }, timeoutMs);
-  if (dryRun) return { dryRun: true, operationCount: operations.length, preview: preview.preview };
-  const queued = await requestJson(api, "/codex/layer-operations/queue", {
-    method: "POST",
-    body: JSON.stringify({ operations, reason })
-  }, timeoutMs);
-  const commandId = queued.command.id;
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const status = await requestJson(api, `/codex/commands/${commandId}`, {}, 10000);
-    if (status.command.status === "completed") return status.command;
-    if (["failed", "cancelled"].includes(status.command.status)) {
-      throw new Error(`${reason} failed: ${JSON.stringify(status.command.result)}`);
-    }
+export function validateFinalSnapshot(snapshot, config) { return validateDelivery(snapshot, config); }
+
+export function preflight(snapshot, input) {
+  const config=structuredClone(input); validateConfig(config); assertDocument(snapshot,config);
+  if(snapshot.scope && snapshot.scope.maxDepth!==null)throw new Error("Full snapshot required");
+  config.documentId=snapshot.document.id;
+  const names=new Set(config.regions.map(r=>r.name));
+  const sourceRegions=snapshot.layers.filter(l=>names.has(l.name));
+  if(sourceRegions.length!==5||new Set(sourceRegions.map(l=>l.name)).size!==5||sourceRegions.some(l=>!l.isGroup))throw new Error("Exactly five unique source region groups required");
+  const surfaces=snapshot.layers.filter(l=>["背景前层","地表前层"].includes(l.name));
+  if(surfaces.length!==1||!surfaces[0].isGroup)throw new Error("Exactly one foreground group required");
+  const surface=surfaces[0], prefix=`island_${config.slug}_`, manifest=[];
+  config.groupVisibility=Object.fromEntries([...sourceRegions,surface].map(l=>[l===surface?'地表前层':l.name,l.visible!==false]));
+  for(const n of ROOT_ORDER.slice(1))config.groupVisibility[n]=true;
+  config.regionOrder=sourceRegions.map(l=>l.name);
+  if(snapshot.layers.some(l=>l.isGroup&&l!==surface&&!names.has(l.name)))throw new Error("Unexpected root group");
+  for(const l of flattenTree(snapshot.layers))if(l.locked)throw new Error(`Locked layer: ${l.name}`);
+  const groupsToMove=[...snapshot.layers.filter(l=>names.has(l.name)),...snapshot.layers.filter(l=>names.has(l.name)).flatMap(r=>r.layers||[])];
+  for(const g of groupsToMove)if((g.opacity!=null&&g.opacity!==100)||(g.blendMode!=null&&!/^(normal|passthrough|BlendMode\.(NORMAL|PASSTHROUGH))$/i.test(g.blendMode)))throw new Error(`Unsupported group compositing: ${g.name}`);
+  for(const [i,l] of (surface.layers||[]).entries()){
+    if(l.isGroup)throw new Error("Nested surface foreground requires fallback");
+    manifest.push({name:prefix+`bg_front${String(i+1).padStart(2,'0')}`,root:"地表前层",visible:l.visible!==false});
   }
-  throw new Error(`${reason} timed out after ${timeoutMs} ms`);
+  // Process regions bottom to top; DOM INSIDE inserts moved layers at the top.
+  config.regions=snapshot.layers.filter(l=>names.has(l.name)).slice().reverse().map(r=>{
+    const spec=config.regions.find(x=>x.name===r.name);
+    if(!r.isGroup||(r.layers||[]).length!==spec.buildings.length)throw new Error(`Unexpected region content: ${r.name}`);
+    const used=new Set();
+    spec.buildings=r.layers.map(b=>{
+      const mapped=spec.buildings.find(x=>x.source===b.name);
+      if(!mapped||!b.isGroup||used.has(b.name))throw new Error(`Unmapped/duplicate building: ${b.name}`);used.add(b.name);
+      const states=new Set();
+      for(const st of b.layers||[]){
+        if(!st.isGroup||!STATE_RULES.has(st.name)||states.has(st.name))throw new Error(`Invalid state: ${b.name}/${st.name}`);states.add(st.name);
+        if(!(st.layers||[]).length)continue;
+        const rule=STATE_RULES.get(st.name), name=prefix+mapped.token+(rule.suffix?'_'+rule.suffix:'');
+        manifest.push({name,...(rule.target==='region'?{region:r.name}:{root:rule.target}),visible:st.visible!==false&&b.visible!==false&&(rule.target==='region'||r.visible!==false)});
+      }
+      if(!(b.layers||[]).some(st=>['修复后','破损'].includes(st.name)&&(st.layers||[]).length))throw new Error(`No building state: ${b.name}`);
+      return mapped;
+    });return spec;
+  });
+  const backgrounds=snapshot.layers.filter(l=>!l.isGroup);
+  if(!backgrounds.length)throw new Error("Missing background");
+  manifest.push({name:prefix+'bg',root:'背景',visible:backgrounds.some(l=>l.visible!==false)});
+  if(new Set(manifest.map(e=>e.name)).size!==manifest.length)throw new Error('Asset names collide; use unique tokens including the reserved background name');
+  // Manifest order follows original document traversal, independent of command order.
+  const sourceOrder=new Map(flattenTree(snapshot.layers).map((l,i)=>[l.id,i]));
+  const assetOrder=new Map();
+  for(const r of snapshot.layers.filter(l=>names.has(l.name)))for(const b of r.layers){const m=config.regions.find(x=>x.name===r.name).buildings.find(x=>x.source===b.name);for(const st of b.layers){const rule=STATE_RULES.get(st.name);assetOrder.set(prefix+m.token+(rule.suffix?'_'+rule.suffix:''),sourceOrder.get(st.id));}}
+  manifest.sort((a,b)=>(assetOrder.get(a.name)??-1)-(assetOrder.get(b.name)??-1));
+  config.manifest=manifest;config.requireColorEvidence=true;return config;
 }
 
-export function validateFinalSnapshot(snapshot, config) {
-  assertDocument(snapshot, config);
-  const errors = [];
-  const roots = snapshot.layers || [];
-  const rootNames = roots.map(layer => layer.name);
-  if (JSON.stringify(rootNames) !== JSON.stringify(ROOT_ORDER)) errors.push(`Root order is ${rootNames.join(" > ")}`);
-  const buildings = rootLayer(snapshot, "建筑", false);
-  if (!buildings) errors.push("Missing 建筑 group");
-  const expectedCount = config.regions.reduce((sum, region) => sum + region.buildings.length, 0) * 2;
-  let buildingLayerCount = 0;
-  if (buildings) {
-    const regions = buildings.layers || [];
-    if (regions.length !== 5) errors.push(`建筑 contains ${regions.length} region groups instead of 5`);
-    for (const regionSpec of config.regions) {
-      const region = directChild(buildings, regionSpec.name, false);
-      if (!region) errors.push(`Missing ${regionSpec.name} under 建筑`);
-      else {
-        const leaves = (region.layers || []).filter(layer => !layer.isGroup);
-        const groups = (region.layers || []).filter(layer => layer.isGroup);
-        buildingLayerCount += leaves.length;
-        if (groups.length) errors.push(`${region.name} still contains building groups`);
-        if (leaves.length !== regionSpec.buildings.length * 2) errors.push(`${region.name} contains ${leaves.length} building layers`);
-      }
+async function queueAndWait(api,snapshot,operations,reason,timeoutMs,report,persist) {
+  const guard={expectedSnapshotId:snapshot.snapshotId,expectedDocumentId:snapshot.document.id,expectedDocumentTitle:snapshot.document.title};
+  const preview=await requestJson(api,"/codex/layer-operations/preview",{method:"POST",body:JSON.stringify({operations,...guard})},timeoutMs);
+  if(preview.snapshotId!==guard.expectedSnapshotId||preview.document.id!==guard.expectedDocumentId)throw new Error("Preview identity changed");
+  const queued=await requestJson(api,"/codex/layer-operations/queue",{method:"POST",body:JSON.stringify({operations,reason,...guard})},timeoutMs);
+  const entry={reason,commandId:queued.command.id,status:'queued',guard};report.commands.push(entry);await persist();
+  console.log(JSON.stringify(entry));
+  const deadline=Date.now()+timeoutMs;
+  while(Date.now()<deadline){
+    await new Promise(r=>setTimeout(r,1000));
+    const {command}=await requestJson(api,`/codex/commands/${entry.commandId}`,{},10000);
+    entry.status=command.status;
+    if(['completed','failed','cancelled'].includes(command.status)){
+      entry.result=command.result;await persist();
+      if(command.status!=='completed'||command.result?.ok===false)throw new Error(`${reason} failed: ${JSON.stringify(command.result)}`);
+      return command.result?.results||[];
     }
   }
-  if (buildingLayerCount !== expectedCount) errors.push(`Building layer count is ${buildingLayerCount}; expected ${expectedCount}`);
-  const all = flatten(roots);
-  const smartObjects = all.filter(layer => !layer.isGroup && String(layer.kind).toUpperCase().includes("SMARTOBJECT"));
-  if (smartObjects.length) errors.push(`${smartObjects.length} Smart Objects remain`);
-  const prefix = `island_${config.slug}_`;
-  const badNames = all.filter(layer => !layer.isGroup && !layer.name.startsWith(prefix));
-  if (badNames.length) errors.push(`Nonstandard leaf names: ${badNames.map(layer => layer.name).join(", ")}`);
-  const names = new Set();
-  const duplicates = [];
-  for (const layer of all.filter(item => !item.isGroup)) {
-    if (names.has(layer.name)) duplicates.push(layer.name);
-    names.add(layer.name);
-  }
-  if (duplicates.length) errors.push(`Duplicate leaf names: ${[...new Set(duplicates)].join(", ")}`);
-  return {
-    ok: errors.length === 0,
-    errors,
-    rootOrder: rootNames,
-    totalLayers: all.length,
-    buildingLayerCount,
-    smartObjectCount: smartObjects.length,
-    colorObservability: snapshot.capabilities?.colorLabels || "unknown"
-  };
+  entry.status='timeout-unknown';await persist();
+  throw new Error(`Command ${entry.commandId} timed out; Photoshop may still be executing. Query this command before recovery; do not rerun setup.`);
 }
 
 async function main() {
-  const options = parseArgs(process.argv.slice(2));
-  const config = JSON.parse(await readFile(options.config, "utf8"));
-  const configSummary = validateConfig(config);
-  const startedAt = Date.now();
-  console.log(JSON.stringify({ event: "start", documentTitle: config.documentTitle, slug: config.slug, ...configSummary }));
-
-  const initial = await freshSnapshot(options.api, "fast island organizer: initial snapshot", options.timeoutMs);
-  const setupOperations = buildSetupOperations(initial, config);
-  console.log(JSON.stringify({ event: "setup-plan", operations: setupOperations.length }));
-  await queueAndWait(options.api, setupOperations, "fast island organizer setup", options.timeoutMs, options.dryRun);
-  if (options.dryRun) return;
-
-  const prepared = await freshSnapshot(options.api, "fast island organizer: prepared snapshot", options.timeoutMs);
-  const organizeOperations = buildOrganizeOperations(prepared, config);
-  console.log(JSON.stringify({ event: "organize-plan", operations: organizeOperations.length }));
-  await queueAndWait(options.api, organizeOperations, "fast island organizer main batch", options.timeoutMs, false);
-
-  const finalSnapshot = await freshSnapshot(options.api, "fast island organizer: final validation", options.timeoutMs);
-  const validation = validateFinalSnapshot(finalSnapshot, config);
-  const elapsedMs = Date.now() - startedAt;
-  console.log(JSON.stringify({ event: "complete", elapsedMs, elapsedSeconds: Number((elapsedMs / 1000).toFixed(1)), validation }));
-  if (!validation.ok) process.exitCode = 2;
+  const options=parseArgs(process.argv.slice(2)), startedAt=Date.now();
+  const report={version:'1.2.0',commands:[],saved:false};
+  const reportPath=options.report||options.config+'.run.json';
+  const persist=()=>writeFile(reportPath,JSON.stringify(report,null,2));
+  try{
+    const input=JSON.parse(await readFile(options.config,'utf8'));
+    let snapshot=await freshSnapshot(options.api,'island organizer: initial',options.timeoutMs);
+    const config=preflight(snapshot,input);report.config=config;report.initialSnapshot=snapshot;
+    const setup=buildSetupOperations(snapshot,config);
+    // Simulate setup so dry-run validates and shows the entire structural plan before mutation.
+    const simulated=structuredClone(snapshot);const surface=simulated.layers.find(l=>['背景前层','地表前层'].includes(l.name));surface.name='地表前层';
+    const bg=simulated.layers.filter(l=>!l.isGroup);simulated.layers=simulated.layers.filter(l=>l.isGroup);
+    let id=-1;for(const name of ['背景','建筑','完整前层','破损前层','__codex_background_merge__'])simulated.layers.push({id:id--,name,isGroup:true,layers:name==='__codex_background_merge__'?bg:[]});
+    report.plan={setup,organize:buildOrganizeOperations(simulated,config),conditional:'refresh; rasterize remaining smart objects; verify; save; refresh and verify'};await persist();
+    if(options.dryRun){console.log(JSON.stringify({dryRun:true,reportPath,assets:config.manifest.length}));return;}
+    await queueAndWait(options.api,snapshot,setup,'setup',options.timeoutMs,report,persist);
+    snapshot=await freshSnapshot(options.api,'island organizer: prepared',options.timeoutMs);assertDocument(snapshot,config);
+    config.colorEvidence=await queueAndWait(options.api,snapshot,buildOrganizeOperations(snapshot,config),'organize',options.timeoutMs,report,persist);
+    snapshot=await freshSnapshot(options.api,'island organizer: organized',options.timeoutMs);assertDocument(snapshot,config);
+    const smart=flattenTree(snapshot.layers).filter(l=>!l.isGroup&&String(l.kind).toUpperCase().includes('SMARTOBJECT'));
+    if(smart.length){await queueAndWait(options.api,snapshot,smart.map(l=>({op:'rasterizeLayer',layerId:l.id})),'rasterize',options.timeoutMs,report,persist);snapshot=await freshSnapshot(options.api,'island organizer: rasterized',options.timeoutMs);}
+    report.validation=validateFinalSnapshot(snapshot,config);report.finalSnapshot=snapshot;await persist();
+    if(!report.validation.ok)throw new Error(JSON.stringify(report.validation.errors));
+    await queueAndWait(options.api,snapshot,[{op:'saveDocument'}],'save validated document',options.timeoutMs,report,persist);report.saved=true;
+    snapshot=await freshSnapshot(options.api,'island organizer: saved verification',options.timeoutMs);
+    report.validation=validateFinalSnapshot(snapshot,config);report.finalSnapshot=snapshot;
+    if(!report.validation.ok)throw new Error(JSON.stringify(report.validation.errors));
+    report.elapsedSeconds=(Date.now()-startedAt)/1000;await persist();
+    console.log(JSON.stringify({saved:true,reportPath,validation:report.validation,elapsedSeconds:report.elapsedSeconds}));
+  }catch(error){report.error=error.message;await persist();throw error;}
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {

@@ -1,0 +1,33 @@
+{
+  "name": "photoshop-codex-bridge",
+  "version": "1.2.0",
+  "description": "Expose Photoshop layer state and layer-organization actions to Codex through a local MCP bridge.",
+  "author": {
+    "name": "Humingbirdbird"
+  },
+  "license": "UNLICENSED",
+  "keywords": [
+    "photoshop",
+    "layers",
+    "mcp",
+    "codex"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Photoshop Codex Bridge",
+    "shortDescription": "Read and organize Photoshop layers through a local bridge.",
+    "longDescription": "A local MCP bridge that lets Codex read Photoshop layer snapshots and automatically execute guarded structured layer operations in the installed Photoshop extension.",
+    "developerName": "Humingbirdbird",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Read the current Photoshop layer tree.",
+      "Rename selected Photoshop layers by rule.",
+      "Organize Photoshop layers into groups."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

@@ -7,7 +7,7 @@ Use `scripts/organize_island_fast.mjs` as the default path when the PSD follows 
 Confirm from a fresh full snapshot that:
 
 - The active document title matches the intended PSD/PSB.
-- Root groups are `背景前层` and `区域一` through `区域五`.
+- Root groups are exactly one of `背景前层` or `地表前层` and `区域一` through `区域五`.
 - Each region contains only mapped building groups.
 - Building children use only `修复后`, `破损`, `修复后前层`, and `破损前层`.
 - Every root non-group layer is an approved component of the single final background.
@@ -69,12 +69,13 @@ node scripts/organize_island_fast.mjs --config "<absolute-config-path>"
 The script performs:
 
 1. Initial full snapshot and document guard.
-2. One setup batch: rename surface foregrounds, create required root groups, and collect root background layers.
+2. Full preflight, a source-derived exact asset manifest, and one setup batch: rename surface foregrounds, create required root groups, and collect root background layers.
 3. One refreshed full snapshot.
-4. One main batch: merge and name every state, move final layers, remove obsolete groups, nest and color five regions, sort roots, and save.
-5. One final full snapshot and delivery validation.
+4. One main batch: merge and name existing states, move final layers, remove obsolete empty groups, nest and color five regions, and sort roots. No save in this batch.
+5. Refresh; rasterize remaining Smart Objects if needed and refresh again; validate exact names, pixels, hierarchy, visibility, and stacking against the source manifest.
+6. Save only if validation passes, then refresh and verify the saved result.
 
-This is two Photoshop commands and three full snapshots. A 217-layer, 20-building Photoshop 2026 test completed in 175.4 seconds; treat that as evidence, not a universal guarantee.
+This is at least three Photoshop commands and four full snapshots; an optional rasterization batch adds one of each. A 217-layer, 20-building Photoshop 2026 test completed in 175.4 seconds; treat that as evidence, not a universal guarantee.
 
 ## Failure Handling
 
@@ -83,3 +84,4 @@ This is two Photoshop commands and three full snapshots. A 217-layer, 20-buildin
 - Never rerun setup against a partially organized PSD; reopen the saved source or use a refreshed manual recovery plan.
 - If Photoshop was edited manually, discard every cached ID and rebuild from a fresh full snapshot.
 - `colorLabels: unavailable-cep` is an observability note when `setLayerColor` results succeeded.
+Use `--dry-run` for a complete preflight and structural plan without queueing edits. Simulated group IDs in that report are placeholders, never executable IDs. Use `--report <path>` to choose a persistent run report (default: `<config>.run.json`). The report records source manifest, operation evidence, command IDs, failure details and final snapshot. Missing source states are omitted, not fabricated; expected counts come from the manifest. The default command timeout is 600 seconds and can be changed using `--timeout-ms`. Timeout does not cancel Photoshop.

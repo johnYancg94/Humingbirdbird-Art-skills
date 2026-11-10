@@ -21,11 +21,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<installed-skill-directory>
 3. Require the script's final JSON result to contain `"ok": true`, `"installed": true`, and the version declared in `dependencies.json`.
 4. If `photoshopRestartRequired` or `agentRestartRequired` is true, tell the user to restart that application before first use.
 
-Do not report this Skill as fully installed when the required bridge installation failed. The installer is local, checksum-verified, idempotent, requires no administrator rights, and does not use UXP Developer Tools or Adobe UPIA. On every Skill activation, call the bridge status tool first. If it is unavailable, rerun the bundled installer once before diagnosing other causes.
+Do not report this Skill as fully installed when the required bridge installation failed. The installer is local, checksum-verified, idempotent, requires no administrator rights, and does not use UXP Developer Tools or Adobe UPIA. For document operations, check bridge status first. If the installed dependency is missing or fails its file integrity check, run the installer. A stopped broker requires restarting Codex or reloading MCP, not repeated installation. Version audits and offline development do not require opening or changing Photoshop.
 
 After opening the Photoshop panel, the user must click `一键开启连接` once. The panel then verifies the CEP interface, Photoshop JSX adapter, and Codex MCP broker, starts on-demand polling, and requests an initial full snapshot. Do not treat a panel that merely opened as connected.
 
-The panel also provides `一键关闭`, which stops panel polling, and `重载插件`, which resets the CEP page. On the next `一键开启连接`, Bridge v1.1.0 reloads the installed JSX adapter before polling. These controls do not install or start the Codex MCP process; if the broker is unavailable, restart Codex or reload the MCP server.
+The panel also provides `一键关闭`, which stops panel polling, and `重载插件`, which resets the CEP page. On the next `一键开启连接`, Bridge v1.2.0 reloads the installed JSX adapter before polling. These controls do not install or start the Codex MCP process; if the broker is unavailable, restart Codex or reload the MCP server.
 
 ## Connection Troubleshooting
 
@@ -64,13 +64,13 @@ If an input is missing, inspect the document first. Ask only for information tha
 4. Match every source building to the supplied naming table. Stop on unmatched or ambiguous items.
 5. Build the complete target tree and rename map in memory.
 6. Use fast mode by default only when all preconditions in `references/fast-organizer.md` pass. Create its JSON config and run `node scripts/organize_island_fast.mjs --config "<absolute-config-path>"` from the installed Skill directory.
-7. Fast mode uses two guarded Photoshop commands and three full snapshots: setup, refresh, main organization plus save, then final validation. Wait for each command result; do not split every merge and move into separate snapshot round trips.
+7. Preflight all buildings and states before mutation. Fast mode uses guarded setup and organization batches, refreshes, rasterizes remaining Smart Objects if needed, validates the exact source-derived manifest, then issues a separate save command and verifies again. Keep the generated run report and command IDs.
 8. If the source structure is irregular, use the guarded fallback: preview bounded batches, wait for completion, then request a fresh full snapshot before planning the next structural batch.
 9. Merge each restored-state group to one layer and each ruined-state group to one layer. Never merge the two states together.
 10. Move state layers directly into their region; move foregrounds into `地表前层`, `破损前层`, or `完整前层`; create required empty groups.
 11. Rasterize every remaining Smart Object, nest and color the five regions under `建筑`, then sort the exact root order.
 12. After any manual Photoshop edit, discard cached IDs and request a fresh full snapshot before recovery or validation.
-13. Save only through a successfully guarded final batch or after a fresh snapshot passes every delivery check.
+13. Save only after a fresh snapshot passes every delivery check. Never place saveDocument in the organization batch. A timeout leaves command execution unknown; inspect the recorded command ID before recovery and do not rerun setup.
 
 Do not delete uncertain source layers, flatten the whole document, or overwrite a different open document. Preserve visibility, pixel bounds, and relative stacking order unless the requested structure requires a move.
 
@@ -95,11 +95,17 @@ Confirm all of the following from a fresh post-operation snapshot:
 When a layer-tree JSON file is available, run:
 
 ```powershell
-python scripts/validate_layer_tree.py <layer-tree.json> --island <slug>
+python scripts/validate_layer_tree.py <layer-tree.json> --config <source-manifest-config.json>
 ```
+
+The Python CLI delegates to the same Node validator as the organizer. The run report contains the generated config with exact manifest and color-operation evidence; export that config for independent delivery validation. `--island <slug>` alone checks structure only and cannot certify complete asset coverage.
 
 Treat validator warnings as review items and validator errors as delivery blockers. If `capabilities.colorLabels` is `unavailable-cep`, missing readable color is an environment observability note, not a delivery warning; a successful `setLayerColor` result is evidence of operation success.
 
 ## Report The Result
 
 State the document name, total layer count, Smart Object count, region counts, empty required groups, unresolved mappings, save status, validation result, and measured elapsed time when fast mode ran. Distinguish live Photoshop verification from checks performed only on an exported JSON snapshot.
+
+## Maintenance
+
+Version 1.2.0. See [release notes](references/release-notes.md) for changes and validation limits. Bridge source and regression tests live in the repository `tools/photoshop-codex-bridge`; the installed skill does not depend on that source checkout.

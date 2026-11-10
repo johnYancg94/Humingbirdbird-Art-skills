@@ -1,0 +1,90 @@
+Photoshop Codex Bridge 手动安装教程
+==================================
+
+适用环境
+--------
+- Windows 10/11 x64
+- Adobe Photoshop 2026（27.x，且安装目录包含 Required\CEP）
+- Codex 桌面版或支持本地 MCP 的 Codex
+
+安装方式说明
+------------
+本发布版是可直接复制安装的 Photoshop CEP 扩展：
+- 不需要 UXP Developer Tools；
+- 不调用 Adobe UPIA；
+- 不需要单独安装 Node.js，发布包已内置运行时；
+- 安装范围是当前 Windows 用户，不需要管理员权限。
+
+推荐：一键安装
+--------------
+1. 完整解压 ZIP，不要只取出 bat 文件。
+2. 关闭 Photoshop。
+3. 双击 Install.bat。
+4. 安装器会校验文件、安装 Photoshop 扩展、备份并更新 Codex 配置。
+5. 打开 Photoshop，进入：
+   窗口 > 扩展（旧版）> Photoshop Codex Bridge
+   英文界面为：
+   Window > Extensions (Legacy) > Photoshop Codex Bridge
+6. 重启 Codex 并新建任务，然后让 Codex 读取当前 Photoshop 图层树。
+
+完全手动安装
+------------
+一键脚本无法执行时：
+
+1. 把 payload 文件夹完整复制到固定位置，例如：
+   C:\Tools\PhotoshopCodexBridge
+
+2. 把：
+   C:\Tools\PhotoshopCodexBridge\photoshop-cep
+   完整复制并重命名为：
+   %APPDATA%\Adobe\CEP\extensions\com.humingbirdbird.photoshop-codex-bridge
+
+3. 打开“注册表编辑器”，为 Photoshop CEP 启用当前用户扩展加载。
+   在以下项中创建字符串值 PlayerDebugMode，数据为 1：
+   HKEY_CURRENT_USER\Software\Adobe\CSXS.12
+
+   Photoshop 更新后如 CEP 主版本改变，可在对应 CSXS.x 项中设置相同值。
+   一键安装器会自动覆盖常见的 CSXS.7 至 CSXS.20，并在卸载时恢复原值。
+
+4. 打开：
+   %USERPROFILE%\.codex\config.toml
+
+5. 添加以下内容，并把路径改成实际绝对路径：
+
+[mcp_servers.photoshop_codex_bridge]
+command = "C:/Tools/PhotoshopCodexBridge/runtime/node.exe"
+args = ["C:/Tools/PhotoshopCodexBridge/bridge/mcp-server/server.mjs"]
+cwd = "C:/Tools/PhotoshopCodexBridge/bridge"
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+default_tools_approval_mode = "prompt"
+
+6. 重启 Photoshop，在“窗口 > 扩展（旧版）”中打开面板。
+7. 重启 Codex 并新建任务。
+
+验证
+----
+1. Photoshop 面板显示中文按钮“一键开启连接”“一键关闭”“重载插件”。
+2. 点击“一键开启连接”，确认状态为“已连接”，并确认 CEP 接口权限、Photoshop 脚本适配器、Codex MCP 服务均为“可用”。
+3. 新 Codex 任务中可看到 Photoshop Bridge 的 MCP 工具。
+4. 让 Codex 读取图层树后，面板才按需读取并缓存当前 PSD 名称和图层数。
+5. Agent 下发的修改操作会在快照、文档和操作预览校验通过后自动执行，无需点击确认。
+
+卸载
+----
+双击 Uninstall.bat，或使用开始菜单中的卸载快捷方式，然后重启
+Photoshop 和 Codex。卸载器会删除当前用户 CEP 扩展、恢复原 Codex
+MCP 配置，并恢复安装前的 PlayerDebugMode 注册表值。
+
+故障排查
+--------
+- 菜单中没有扩展：
+  确认 Photoshop 已完全重启，并检查扩展目录及 PlayerDebugMode。
+- 面板显示“连接异常”或“自动重连中”：
+  先点击“重载插件”；检查三个连接状态。MCP 服务不可用时重启 Codex 或重新加载 MCP，不要启动第二个 47777 Broker。
+- 面板状态为“已关闭”：
+  点击“一键开启连接”，连接成功后再点击“重新读取图层”。
+- Codex 看不到工具：
+  确认使用的是新任务，Codex 只会在任务启动时读取 MCP 配置。
+- Photoshop 安装中没有 Required\CEP：
+  此 Photoshop 版本不兼容本独立安装版，不能用复制方式安装。

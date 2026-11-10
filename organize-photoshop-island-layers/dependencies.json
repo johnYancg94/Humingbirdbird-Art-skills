@@ -4,18 +4,57 @@
     {
       "id": "photoshop-codex-bridge",
       "name": "Photoshop Codex Bridge",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "required": true,
-      "platforms": ["win32-x64"],
+      "platforms": [
+        "win32-x64"
+      ],
       "installPolicy": "install-with-skill",
       "installer": "scripts/install_photoshop_bridge.ps1",
-      "artifactUrl": "https://raw.githubusercontent.com/johnYancg94/Humingbirdbird-Art-skills/photoshop-codex-bridge-v1.1.0/organize-photoshop-island-layers/dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.1.0-win-x64.zip",
-      "sha256": "19CEC60EA20A3745045B68BCD11357B719BC3ADFC9C28E0E45AF9BEA1DA0D532",
+      "artifactUrl": "https://github.com/johnYancg94/Humingbirdbird-Art-skills/releases/download/photoshop-codex-bridge-v1.2.0/Photoshop-Codex-Bridge-v1.2.0-win-x64.zip",
+      "sha256": "FBAB5FEF4C7F5F84EBD02084C96F7450905DFD83D55D4D7997252515476B9240",
       "requiresPhotoshopRestart": true,
       "requiresAgentRestart": true,
       "requiresAdministrator": false,
       "requiresUxpDeveloperTools": false,
-      "requiresUpia": false
+      "requiresUpia": false,
+      "installedFiles": [
+        {
+          "root": "version",
+          "path": "bridge/mcp-server/server.mjs",
+          "sha256": "A760AB285086AF393D0441FDB86384407E03E5D12C603744753CB1F4C264A46F"
+        },
+        {
+          "root": "version",
+          "path": "bridge/mcp-server/snapshot-guard.mjs",
+          "sha256": "8B3271D50838408B5036C0B67C59F1F0C2A7FD56F616879EBB85A5B7D1E08016"
+        },
+        {
+          "root": "cep",
+          "path": "CSXS/manifest.xml",
+          "sha256": "6434400520B758E71AFB77904A91E5187C0D868EC55FF2D90B6D6E7E535E1810"
+        },
+        {
+          "root": "cep",
+          "path": "jsx/bridge.jsx",
+          "sha256": "A8F4CB3301D454533D82AD4E372D3440A21026F6A32CD7F13FD9B67568375CA7"
+        },
+        {
+          "root": "cep",
+          "path": "js/main.js",
+          "sha256": "7AC1883FF2930CC30B3A74FA5DE9B2B29B2225BFCC4704A68A50948FD93C4A4F"
+        },
+        {
+          "root": "cep",
+          "path": "js/command-policy.js",
+          "sha256": "D43E6CC4C68094251F678F7410D2C149A8A7E8A52965EF15A8FD6B4DD64B8672"
+        },
+        {
+          "root": "cep",
+          "path": "js/connection-policy.js",
+          "sha256": "0D094F07B1270C77342BCE36669E3A347B465FB44A6EE11931DCC3162FBD8BCD"
+        }
+      ]
     }
   ]
 }

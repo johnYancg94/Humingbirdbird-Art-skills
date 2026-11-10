@@ -43,12 +43,9 @@ If any identity changes or the snapshot becomes stale, stop, read a fresh tree, 
 
 ## Operation Order
 
-For a regular five-region source, use `scripts/organize_island_fast.mjs` and the preconditions in `references/fast-organizer.md`. It intentionally uses two commands:
+For a regular five-region source use the bundled organizer. It preflights the entire source, executes setup and organization as separate guarded batches, refreshes and validates, then saves in a separate guarded command. The source manifest governs exact coverage, visibility and order; states absent from the source are not invented.
 
-1. Setup: rename surface foregrounds, create required roots, and collect background sources.
-2. Main: merge, rename, move, delete obsolete groups, color regions, reorder roots, and save.
-
-Request a fresh full snapshot before setup, between the two commands, and after the main command. Within a guarded command, v1.1.0 permits a later operation to use the live result of an earlier rename, merge, or move while preserving stale-state checks for untouched layers.
+Both HTTP and MCP explicit queue calls require `expectedSnapshotId`, `expectedDocumentId`, and `expectedDocumentTitle` copied from the inspected preview. A mismatch rejects the queue. Refresh and rebuild the plan; do not silently adopt the new snapshot. Internal plan-and-queue tools bind their plan synchronously to the current snapshot.
 
 For irregular sources, use dependency-ordered fallback batches: rename, merge, create targets, move, color, delete obsolete groups, rasterize, refresh, validate, then save.
 
@@ -62,3 +59,5 @@ For irregular sources, use dependency-ordered fallback batches: rename, merge, c
 - After any manual move or sort, request a fresh snapshot before rebuilding or validating operations.
 - Stop on the first failed operation. Do not continue with layer IDs whose parent structure may have changed.
 - Save only after the final snapshot passes delivery checks.
+
+Bridge 1.2.0 failure results retain `failedOperationIndex` (zero-based), `failedOperation`, `completedCount`, and successful `results`. A merge that changes a layer ID remaps later operations in the same batch. After failure obtain a fresh snapshot; command reports describe completed operations but are not rollback instructions.

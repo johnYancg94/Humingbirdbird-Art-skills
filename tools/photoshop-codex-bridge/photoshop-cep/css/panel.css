@@ -1,0 +1,97 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+}
+
+body {
+  margin: 0;
+  padding: 12px;
+  color: #e8e8e8;
+  background: #323232;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.badge {
+  padding: 3px 6px;
+  border-radius: 3px;
+  color: #d8d8d8;
+  background: #4a4a4a;
+}
+
+.badge.ok {
+  color: #102216;
+  background: #78c995;
+}
+
+.badge.error {
+  color: #2b1010;
+  background: #e68585;
+}
+
+.badge.warning {
+  color: #2b2110;
+  background: #e5b86d;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+button {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 112px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid #707070;
+  border-radius: 3px;
+  color: #f2f2f2;
+  background: #494949;
+}
+
+button:hover {
+  background: #585858;
+}
+
+button:disabled {
+  color: #929292;
+  background: #3c3c3c;
+  border-color: #4c4c4c;
+}
+
+button.primary {
+  border-color: #65a7dc;
+  background: #2876b5;
+}
+
+.mode {
+  margin: 8px 0;
+  color: #9fd5ad;
+}
+
+label {
+  display: block;
+  margin: 8px 0;
+}
+
+pre {
+  min-height: 150px;
+  margin: 12px 0 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid #555;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #282828;
+}

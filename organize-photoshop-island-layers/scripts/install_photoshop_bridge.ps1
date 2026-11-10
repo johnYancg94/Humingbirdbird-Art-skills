@@ -4,10 +4,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Version = "1.1.0"
+$Dependency = (Get-Content -Raw -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) "dependencies.json") | ConvertFrom-Json).dependencies[0]
+$Version = [string]$Dependency.version
 $ExtensionId = "com.humingbirdbird.photoshop-codex-bridge"
-$ArchiveUrl = "https://raw.githubusercontent.com/johnYancg94/Humingbirdbird-Art-skills/photoshop-codex-bridge-v1.1.0/organize-photoshop-island-layers/dependencies/photoshop-codex-bridge/Photoshop-Codex-Bridge-v1.1.0-win-x64.zip"
-$ExpectedHash = "19CEC60EA20A3745045B68BCD11357B719BC3ADFC9C28E0E45AF9BEA1DA0D532"
+$ArchiveUrl = [string]$Dependency.artifactUrl
+$ExpectedHash = [string]$Dependency.sha256
 $InstallBase = Join-Path $env:LOCALAPPDATA "Humingbirdbird\PhotoshopCodexBridge"
 $VersionRoot = Join-Path $InstallBase $Version
 $CepRoot = Join-Path $env:APPDATA "Adobe\CEP\extensions\$ExtensionId"
@@ -30,6 +31,12 @@ function Test-BridgeDependency {
   $Config = Get-Content -LiteralPath $CodexConfig -Raw
   if (-not $Config.Contains("[mcp_servers.photoshop_codex_bridge]")) { return $false }
   if (-not $Config.Contains("Humingbirdbird/PhotoshopCodexBridge/$Version/bridge/mcp-server/server.mjs")) { return $false }
+  foreach ($Entry in $Dependency.installedFiles) {
+    $Base = if ($Entry.root -eq 'cep') { $CepRoot } else { $VersionRoot }
+    $File = Join-Path $Base $Entry.path
+    if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { return $false }
+    if ((Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash -ne $Entry.sha256) { return $false }
+  }
   return $true
 }
 
@@ -78,6 +85,9 @@ try {
   Write-Result -AlreadyInstalled $false
 } finally {
   if (Test-Path -LiteralPath $TempRoot) {
-    Remove-Item -LiteralPath $TempRoot -Recurse -Force
+    $ResolvedTemp = [System.IO.Path]::GetFullPath($TempRoot)
+    $AllowedTemp = [System.IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+    if (-not $ResolvedTemp.StartsWith($AllowedTemp, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'Temporary path escaped TEMP' }
+    Remove-Item -LiteralPath $ResolvedTemp -Recurse -Force
   }
 }

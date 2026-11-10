@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFile} from 'node:fs/promises';
+const source=(await readFile(new URL('../photoshop-cep/jsx/bridge.jsx',import.meta.url),'utf8')).replace(/^#target.*\r?\n/,'');
+const doc={id:99,name:'test.psd',layers:[]};
+const g={id:1,name:'state',typename:'LayerSet',layers:[],merge(){const merged={id:200,name:'merged',typename:'ArtLayer'};doc.layers=[merged];return merged;}};doc.layers=[g];
+const ctx={$:{global:{}},app:{documents:[doc],activeDocument:doc},JSON,encodeURIComponent,decodeURIComponent};vm.createContext(ctx);vm.runInContext(source,ctx);
+const run=payload=>JSON.parse(ctx.$.global.psCodexBridge.execute(encodeURIComponent(JSON.stringify({payload}))));
+const r=run({expectedDocumentId:99,expectedDocumentTitle:'test.psd',operations:[{op:'mergeGroupToLayer',groupLayerId:1,name:'final'},{op:'renameLayer',layerId:1,name:'remapped'},{op:'renameLayer',layerId:999,name:'invalid'}],preview:[]});
+assert.equal(r.ok,false);assert.equal(r.failedOperationIndex,2);assert.equal(r.completedCount,2);assert.equal(r.results[0].layerId,200);assert.equal(doc.layers[0].name,'remapped');
+const wrong=run({expectedDocumentId:99,expectedDocumentTitle:'other.psd',operations:[]});assert.equal(wrong.ok,false);
+console.log('CEP execution simulation passed: merge ID remap, partial failure, document title');

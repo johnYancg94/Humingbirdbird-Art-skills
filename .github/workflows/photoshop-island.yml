@@ -1,0 +1,18 @@
+name: Photoshop island regression
+on:
+  push:
+    paths: ['organize-photoshop-island-layers/**', 'tools/photoshop-codex-bridge/**', '.github/workflows/photoshop-island.yml']
+  pull_request:
+    paths: ['organize-photoshop-island-layers/**', 'tools/photoshop-codex-bridge/**', '.github/workflows/photoshop-island.yml']
+jobs:
+  regression:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: node tools/photoshop-codex-bridge/scripts/run-tests.mjs
