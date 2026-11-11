@@ -1,0 +1,4 @@
+interface:
+  display_name: "IslandSplash 角色与配方道具导入"
+  short_description: "将 Blender 角色和配方道具导入 Unity，完成游客装配、贴图规范与手持偏移验收"
+  default_prompt: "使用 $islandsplash-import-characters-items，按项目规范导入当前 Blender 中的角色或配方道具并验证交付。"
